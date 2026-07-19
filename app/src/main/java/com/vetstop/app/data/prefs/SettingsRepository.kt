@@ -18,7 +18,7 @@ private val Context.dataStore: DataStore<Preferences> by preferencesDataStore(na
 
 data class Settings(
     val visitorName: String,
-    val corridorMiles: Float,
+    val corridorMinutes: Float,
     val lastSyncAt: Long?,
     val lastSyncSummary: String?,
 )
@@ -29,7 +29,7 @@ class SettingsRepository @Inject constructor(
 ) {
     private object Keys {
         val VISITOR_NAME = stringPreferencesKey("visitor_name")
-        val CORRIDOR_MILES = floatPreferencesKey("corridor_miles")
+        val CORRIDOR_MINUTES = floatPreferencesKey("corridor_minutes")
         val LAST_SYNC_AT = longPreferencesKey("last_sync_at")
         val LAST_SYNC_SUMMARY = stringPreferencesKey("last_sync_summary")
     }
@@ -37,7 +37,7 @@ class SettingsRepository @Inject constructor(
     val settings: Flow<Settings> = context.dataStore.data.map { prefs ->
         Settings(
             visitorName = prefs[Keys.VISITOR_NAME] ?: "",
-            corridorMiles = prefs[Keys.CORRIDOR_MILES] ?: DEFAULT_CORRIDOR_MILES,
+            corridorMinutes = prefs[Keys.CORRIDOR_MINUTES] ?: DEFAULT_CORRIDOR_MINUTES,
             lastSyncAt = prefs[Keys.LAST_SYNC_AT],
             lastSyncSummary = prefs[Keys.LAST_SYNC_SUMMARY],
         )
@@ -47,8 +47,8 @@ class SettingsRepository @Inject constructor(
         context.dataStore.edit { it[Keys.VISITOR_NAME] = name }
     }
 
-    suspend fun setCorridorMiles(miles: Float) {
-        context.dataStore.edit { it[Keys.CORRIDOR_MILES] = miles }
+    suspend fun setCorridorMinutes(minutes: Float) {
+        context.dataStore.edit { it[Keys.CORRIDOR_MINUTES] = minutes }
     }
 
     suspend fun recordSyncResult(timestamp: Long, summary: String) {
@@ -59,6 +59,6 @@ class SettingsRepository @Inject constructor(
     }
 
     companion object {
-        const val DEFAULT_CORRIDOR_MILES = 2f
+        const val DEFAULT_CORRIDOR_MINUTES = 4f
     }
 }

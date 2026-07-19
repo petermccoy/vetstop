@@ -26,13 +26,15 @@ import kotlinx.coroutines.tasks.await
 data class TripUiState(
     val origin: String = "",
     val destination: String = "",
-    val corridorMiles: Float = SettingsRepository.DEFAULT_CORRIDOR_MILES,
+    val corridorMinutes: Float = SettingsRepository.DEFAULT_CORRIDOR_MINUTES,
     val visitFilter: VisitFilter = VisitFilter.ANY,
     val isLoading: Boolean = false,
     val error: String? = null,
     val route: PlannedRoute? = null,
     val candidates: List<LocationAlongRoute> = emptyList(),
     val selectedPlaceIds: Set<String> = emptySet(),
+    /** Whether the origin/destination entry form is expanded. */
+    val showTripForm: Boolean = true,
 ) {
     val selectedCandidates: List<LocationAlongRoute>
         get() = candidates.filter { it.location.placeId in selectedPlaceIds }
@@ -55,7 +57,7 @@ class TripViewModel @Inject constructor(
     init {
         viewModelScope.launch {
             val settings = settingsRepository.settings.first()
-            _uiState.value = _uiState.value.copy(corridorMiles = settings.corridorMiles)
+            _uiState.value = _uiState.value.copy(corridorMinutes = settings.corridorMinutes)
         }
     }
 
@@ -67,10 +69,14 @@ class TripViewModel @Inject constructor(
         _uiState.value = _uiState.value.copy(destination = value)
     }
 
-    fun setCorridorMiles(miles: Float) {
-        _uiState.value = _uiState.value.copy(corridorMiles = miles)
-        viewModelScope.launch { settingsRepository.setCorridorMiles(miles) }
+    fun setCorridorMinutes(minutes: Float) {
+        _uiState.value = _uiState.value.copy(corridorMinutes = minutes)
+        viewModelScope.launch { settingsRepository.setCorridorMinutes(minutes) }
         refilterCandidates()
+    }
+
+    fun expandTripForm() {
+        _uiState.value = _uiState.value.copy(showTripForm = true)
     }
 
     fun setVisitFilter(filter: VisitFilter) {
@@ -116,6 +122,8 @@ class TripViewModel @Inject constructor(
                         isLoading = false,
                         route = route,
                         selectedPlaceIds = emptySet(),
+                        // Fold the entry form away to leave room for stop picking.
+                        showTripForm = false,
                     )
                     refilterCandidates()
                 }
@@ -138,7 +146,7 @@ class TripViewModel @Inject constructor(
             val candidates = routeRepository.locationsAlongRoute(
                 route = route,
                 locations = filtered,
-                maxDistanceMeters = state.corridorMiles * GeoUtils.METERS_PER_MILE,
+                maxDistanceMeters = state.corridorMinutes * GeoUtils.METERS_PER_DETOUR_MINUTE,
             )
             val stillVisible = candidates.map { it.location.placeId }.toSet()
             _uiState.value = _uiState.value.copy(

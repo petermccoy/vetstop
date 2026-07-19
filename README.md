@@ -25,10 +25,16 @@ with a hand-off to Google Maps for turn-by-turn navigation.
   brochures you found remaining, how many you left, and free-form notes.
 - **Trip tab** — enter a start (or use your current GPS position) and a
   destination. The app computes the driving route, then shows every saved
-  location within an adjustable corridor distance of that route (filterable by
-  last-visit date). Check off the ones you want to hit — they appear green on
-  the map — and press **Navigate**: Google Maps opens with those locations
-  already added as ordered stops.
+  location within an adjustable estimated detour time of that route
+  (filterable by last-visit date). Detour time is approximated from off-route
+  distance at an assumed 30 mph local speed, so no extra API calls are made
+  per candidate. Once a route is planned the entry form folds into a compact
+  summary bar (tap the pencil to edit the trip) so the stop list gets the
+  screen space. Check off the stops you want — they appear green on the map —
+  and press **Navigate**: Google Maps opens with those locations already added
+  as ordered stops.
+- **Visits tab** — reverse-chronological list of every logged visit, with
+  in-place editing (reopens the visit form pre-filled) and dismissal.
 
 > **Note on Google Maps integration:** Google doesn't let third-party apps
 > read or modify a route that is *already running* inside Google Maps, and

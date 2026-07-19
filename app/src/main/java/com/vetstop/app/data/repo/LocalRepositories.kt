@@ -2,6 +2,7 @@ package com.vetstop.app.data.repo
 
 import com.vetstop.app.data.db.LocationDao
 import com.vetstop.app.data.db.LocationWithLastVisit
+import com.vetstop.app.data.db.RecentVisit
 import com.vetstop.app.data.db.SearchAreaDao
 import com.vetstop.app.data.db.SearchAreaEntity
 import com.vetstop.app.data.db.VisitDao
@@ -39,6 +40,11 @@ class VisitRepository @Inject constructor(
     private val dao: VisitDao,
 ) {
     fun observeForPlace(placeId: String): Flow<List<VisitEntity>> = dao.observeForPlace(placeId)
+    fun observeRecentWithLocation(limit: Int = 100): Flow<List<RecentVisit>> =
+        dao.observeRecentWithLocation(limit)
+
+    suspend fun getById(id: Long): VisitEntity? = dao.getById(id)
     suspend fun add(visit: VisitEntity): Long = dao.insert(visit)
+    suspend fun update(visit: VisitEntity) = dao.update(visit)
     suspend fun delete(visit: VisitEntity) = dao.delete(visit)
 }

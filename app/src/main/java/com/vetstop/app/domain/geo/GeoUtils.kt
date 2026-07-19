@@ -14,6 +14,14 @@ object GeoUtils {
     const val EARTH_RADIUS_METERS = 6_371_000.0
     const val METERS_PER_MILE = 1_609.344
 
+    /**
+     * Assumed average speed on local roads, used to convert a "minutes off
+     * route" corridor into a search distance without paying for a Directions
+     * call per candidate location.
+     */
+    const val ASSUMED_LOCAL_SPEED_MPH = 30.0
+    const val METERS_PER_DETOUR_MINUTE = ASSUMED_LOCAL_SPEED_MPH * METERS_PER_MILE / 60.0
+
     /** Great-circle distance between two points, in meters. */
     fun haversineMeters(a: LatLng, b: LatLng): Double {
         val dLat = Math.toRadians(b.latitude - a.latitude)

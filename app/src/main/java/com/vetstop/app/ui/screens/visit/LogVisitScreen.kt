@@ -54,8 +54,10 @@ import java.time.ZoneId
 import java.time.ZoneOffset
 import java.time.format.DateTimeFormatter
 import javax.inject.Inject
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
@@ -69,6 +71,21 @@ class LogVisitViewModel @Inject constructor(
 ) : ViewModel() {
 
     val placeId: String = checkNotNull(savedStateHandle["placeId"])
+
+    /** When > 0, the screen edits this existing visit instead of creating one. */
+    val visitId: Long = savedStateHandle["visitId"] ?: -1L
+    val isEditing: Boolean = visitId > 0
+
+    private val _existingVisit = MutableStateFlow<VisitEntity?>(null)
+    val existingVisit: StateFlow<VisitEntity?> = _existingVisit.asStateFlow()
+
+    init {
+        if (isEditing) {
+            viewModelScope.launch {
+                _existingVisit.value = visitRepository.getById(visitId)
+            }
+        }
+    }
 
     val locationName: StateFlow<String> =
         locationRepository.observeByIdWithLastVisit(placeId)
@@ -89,16 +106,16 @@ class LogVisitViewModel @Inject constructor(
         onSaved: () -> Unit,
     ) {
         viewModelScope.launch {
-            visitRepository.add(
-                VisitEntity(
-                    placeId = placeId,
-                    visitorName = visitorName.trim(),
-                    visitedAt = visitedAt,
-                    brochuresRemaining = brochuresRemaining,
-                    brochuresLeft = brochuresLeft,
-                    notes = notes.trim(),
-                )
+            val visit = VisitEntity(
+                id = if (isEditing) visitId else 0,
+                placeId = placeId,
+                visitorName = visitorName.trim(),
+                visitedAt = visitedAt,
+                brochuresRemaining = brochuresRemaining,
+                brochuresLeft = brochuresLeft,
+                notes = notes.trim(),
             )
+            if (isEditing) visitRepository.update(visit) else visitRepository.add(visit)
             if (visitorName.isNotBlank()) {
                 settingsRepository.setVisitorName(visitorName.trim())
             }
@@ -115,6 +132,7 @@ fun LogVisitScreen(
 ) {
     val locationName by viewModel.locationName.collectAsState()
     val defaultVisitorName by viewModel.defaultVisitorName.collectAsState()
+    val existingVisit by viewModel.existingVisit.collectAsState()
 
     var visitorName by remember { mutableStateOf("") }
     var visitDate by remember { mutableStateOf(LocalDate.now()) }
@@ -132,10 +150,25 @@ fun LogVisitScreen(
         }
     }
 
+    // In edit mode, populate the form from the stored visit once it loads.
+    LaunchedEffect(existingVisit) {
+        existingVisit?.let { visit ->
+            visitorName = visit.visitorName
+            val dateTime = Instant.ofEpochMilli(visit.visitedAt)
+                .atZone(ZoneId.systemDefault())
+                .toLocalDateTime()
+            visitDate = dateTime.toLocalDate()
+            visitTime = dateTime.toLocalTime().withSecond(0).withNano(0)
+            brochuresRemaining = visit.brochuresRemaining.toString()
+            brochuresLeft = visit.brochuresLeft.toString()
+            notes = visit.notes
+        }
+    }
+
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Log visit") },
+                title = { Text(if (viewModel.isEditing) "Edit visit" else "Log visit") },
                 navigationIcon = {
                     IconButton(onClick = onDone) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
@@ -216,7 +249,7 @@ fun LogVisitScreen(
                 },
                 modifier = Modifier.fillMaxWidth(),
             ) {
-                Text("Save visit")
+                Text(if (viewModel.isEditing) "Update visit" else "Save visit")
             }
         }
     }

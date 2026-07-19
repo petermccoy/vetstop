@@ -2,6 +2,7 @@ package com.vetstop.app.ui.navigation
 
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.Map
 import androidx.compose.material.icons.filled.Place
 import androidx.compose.material.icons.filled.Route
@@ -29,17 +30,21 @@ import com.vetstop.app.ui.screens.locations.LocationsScreen
 import com.vetstop.app.ui.screens.trip.TripPlannerScreen
 import com.vetstop.app.ui.screens.settings.SettingsScreen
 import com.vetstop.app.ui.screens.visit.LogVisitScreen
+import com.vetstop.app.ui.screens.visits.RecentVisitsScreen
 
 object Routes {
     const val AREAS = "areas"
     const val LOCATIONS = "locations"
     const val TRIP = "trip"
+    const val VISITS = "visits"
     const val SETTINGS = "settings"
     const val LOCATION_DETAIL = "location/{placeId}"
-    const val LOG_VISIT = "logVisit/{placeId}"
+    const val LOG_VISIT = "logVisit/{placeId}?visitId={visitId}"
 
     fun locationDetail(placeId: String) = "location/$placeId"
-    fun logVisit(placeId: String) = "logVisit/$placeId"
+
+    /** Pass a [visitId] to edit an existing visit instead of logging a new one. */
+    fun logVisit(placeId: String, visitId: Long = -1L) = "logVisit/$placeId?visitId=$visitId"
 }
 
 private data class TopLevelDestination(
@@ -50,8 +55,9 @@ private data class TopLevelDestination(
 
 private val topLevelDestinations = listOf(
     TopLevelDestination(Routes.AREAS, "Area", Icons.Filled.Map),
-    TopLevelDestination(Routes.LOCATIONS, "Locations", Icons.Filled.Place),
+    TopLevelDestination(Routes.LOCATIONS, "Places", Icons.Filled.Place),
     TopLevelDestination(Routes.TRIP, "Trip", Icons.Filled.Route),
+    TopLevelDestination(Routes.VISITS, "Visits", Icons.Filled.History),
     TopLevelDestination(Routes.SETTINGS, "Settings", Icons.Filled.Settings),
 )
 
@@ -113,7 +119,13 @@ fun VetStopNavHost() {
             }
             composable(
                 route = Routes.LOG_VISIT,
-                arguments = listOf(navArgument("placeId") { type = NavType.StringType }),
+                arguments = listOf(
+                    navArgument("placeId") { type = NavType.StringType },
+                    navArgument("visitId") {
+                        type = NavType.LongType
+                        defaultValue = -1L
+                    },
+                ),
             ) {
                 LogVisitScreen(
                     onDone = { navController.popBackStack() },
@@ -121,6 +133,13 @@ fun VetStopNavHost() {
             }
             composable(Routes.TRIP) {
                 TripPlannerScreen()
+            }
+            composable(Routes.VISITS) {
+                RecentVisitsScreen(
+                    onEditVisit = { placeId, visitId ->
+                        navController.navigate(Routes.logVisit(placeId, visitId))
+                    },
+                )
             }
             composable(Routes.SETTINGS) {
                 SettingsScreen()
