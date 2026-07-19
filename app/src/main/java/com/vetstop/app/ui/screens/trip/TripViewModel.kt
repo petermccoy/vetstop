@@ -12,6 +12,7 @@ import com.vetstop.app.data.repo.LocationAlongRoute
 import com.vetstop.app.data.repo.LocationRepository
 import com.vetstop.app.data.repo.PlannedRoute
 import com.vetstop.app.data.repo.RouteRepository
+import com.vetstop.app.data.repo.VisitRepository
 import com.vetstop.app.domain.geo.GeoUtils
 import com.vetstop.app.domain.model.VisitFilter
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -48,6 +49,7 @@ class TripViewModel @Inject constructor(
     private val routeRepository: RouteRepository,
     private val locationRepository: LocationRepository,
     private val settingsRepository: SettingsRepository,
+    private val visitRepository: VisitRepository,
     private val fusedLocationClient: FusedLocationProviderClient,
 ) : ViewModel() {
 
@@ -170,6 +172,17 @@ class TripViewModel @Inject constructor(
 
     fun clearError() {
         _uiState.value = _uiState.value.copy(error = null)
+    }
+
+    /**
+     * Queues the currently selected stops as pending visits so they show up
+     * in the Visits tab's "to log" section. Called when the trip is handed
+     * off to Google Maps.
+     */
+    fun recordPlannedStops() {
+        val placeIds = _uiState.value.selectedPlaceIds
+        if (placeIds.isEmpty()) return
+        viewModelScope.launch { visitRepository.addPending(placeIds) }
     }
 
     /**

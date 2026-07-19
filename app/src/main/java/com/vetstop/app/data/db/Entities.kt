@@ -38,6 +38,30 @@ data class LocationEntity(
     val isActive: Boolean = true,
 )
 
+/**
+ * A stop that was included in a launched trip but has not been logged as a
+ * visit yet. At most one pending entry per location (re-launching a trip with
+ * the same stop just refreshes [createdAt]).
+ */
+@Entity(
+    tableName = "pending_visits",
+    foreignKeys = [
+        ForeignKey(
+            entity = LocationEntity::class,
+            parentColumns = ["placeId"],
+            childColumns = ["placeId"],
+            onDelete = ForeignKey.CASCADE,
+        )
+    ],
+    indices = [Index("placeId", unique = true)],
+)
+data class PendingVisitEntity(
+    @PrimaryKey(autoGenerate = true) val id: Long = 0,
+    val placeId: String,
+    /** When the trip containing this stop was sent to Google Maps. */
+    val createdAt: Long,
+)
+
 /** A logged brochure-drop visit to a location. */
 @Entity(
     tableName = "visits",

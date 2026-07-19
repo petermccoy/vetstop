@@ -2,6 +2,9 @@ package com.vetstop.app.data.repo
 
 import com.vetstop.app.data.db.LocationDao
 import com.vetstop.app.data.db.LocationWithLastVisit
+import com.vetstop.app.data.db.PendingVisitDao
+import com.vetstop.app.data.db.PendingVisitEntity
+import com.vetstop.app.data.db.PendingVisitWithLocation
 import com.vetstop.app.data.db.RecentVisit
 import com.vetstop.app.data.db.SearchAreaDao
 import com.vetstop.app.data.db.SearchAreaEntity
@@ -38,6 +41,7 @@ class LocationRepository @Inject constructor(
 @Singleton
 class VisitRepository @Inject constructor(
     private val dao: VisitDao,
+    private val pendingDao: PendingVisitDao,
 ) {
     fun observeForPlace(placeId: String): Flow<List<VisitEntity>> = dao.observeForPlace(placeId)
     fun observeRecentWithLocation(limit: Int = 100): Flow<List<RecentVisit>> =
@@ -47,4 +51,19 @@ class VisitRepository @Inject constructor(
     suspend fun add(visit: VisitEntity): Long = dao.insert(visit)
     suspend fun update(visit: VisitEntity) = dao.update(visit)
     suspend fun delete(visit: VisitEntity) = dao.delete(visit)
+
+    // --- Pending (not-yet-logged) trip stops ---
+
+    fun observePending(): Flow<List<PendingVisitWithLocation>> =
+        pendingDao.observeAllWithLocation()
+
+    /** Queues the given places as stops awaiting a logged visit. */
+    suspend fun addPending(placeIds: Collection<String>) {
+        val now = System.currentTimeMillis()
+        for (placeId in placeIds) {
+            pendingDao.upsert(PendingVisitEntity(placeId = placeId, createdAt = now))
+        }
+    }
+
+    suspend fun clearPending(placeId: String) = pendingDao.deleteByPlaceId(placeId)
 }

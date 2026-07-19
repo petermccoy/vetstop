@@ -116,6 +116,8 @@ class LogVisitViewModel @Inject constructor(
                 notes = notes.trim(),
             )
             if (isEditing) visitRepository.update(visit) else visitRepository.add(visit)
+            // Logging a visit resolves any pending "to log" entry for this place.
+            visitRepository.clearPending(placeId)
             if (visitorName.isNotBlank()) {
                 settingsRepository.setVisitorName(visitorName.trim())
             }

@@ -136,7 +136,7 @@ fun VetStopNavHost() {
             }
             composable(Routes.VISITS) {
                 RecentVisitsScreen(
-                    onEditVisit = { placeId, visitId ->
+                    onOpenVisitForm = { placeId, visitId ->
                         navController.navigate(Routes.logVisit(placeId, visitId))
                     },
                 )

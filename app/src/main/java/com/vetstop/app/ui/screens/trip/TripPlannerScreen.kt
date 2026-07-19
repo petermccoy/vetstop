@@ -180,6 +180,8 @@ fun TripPlannerScreen(
 
             Button(
                 onClick = {
+                    // Queue the chosen stops for logging before handing off.
+                    viewModel.recordPlannedStops()
                     val intent = Intent(Intent.ACTION_VIEW, viewModel.buildNavigationUri())
                     context.startActivity(intent)
                 },

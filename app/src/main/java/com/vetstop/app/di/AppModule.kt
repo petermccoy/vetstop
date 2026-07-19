@@ -5,6 +5,7 @@ import androidx.room.Room
 import com.google.android.gms.location.FusedLocationProviderClient
 import com.google.android.gms.location.LocationServices
 import com.vetstop.app.data.db.LocationDao
+import com.vetstop.app.data.db.PendingVisitDao
 import com.vetstop.app.data.db.SearchAreaDao
 import com.vetstop.app.data.db.VetStopDatabase
 import com.vetstop.app.data.db.VisitDao
@@ -29,6 +30,7 @@ object AppModule {
     @Singleton
     fun provideDatabase(@ApplicationContext context: Context): VetStopDatabase =
         Room.databaseBuilder(context, VetStopDatabase::class.java, "vetstop.db")
+            .addMigrations(VetStopDatabase.MIGRATION_1_2)
             .fallbackToDestructiveMigration()
             .build()
 
@@ -40,6 +42,9 @@ object AppModule {
 
     @Provides
     fun provideVisitDao(db: VetStopDatabase): VisitDao = db.visitDao()
+
+    @Provides
+    fun providePendingVisitDao(db: VetStopDatabase): PendingVisitDao = db.pendingVisitDao()
 
     @Provides
     @Singleton

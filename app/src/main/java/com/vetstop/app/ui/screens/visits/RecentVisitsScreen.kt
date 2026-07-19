@@ -10,10 +10,12 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -30,6 +32,7 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.vetstop.app.data.db.PendingVisitWithLocation
 import com.vetstop.app.data.db.RecentVisit
 import com.vetstop.app.data.repo.VisitRepository
 import com.vetstop.app.ui.common.formatDateTime
@@ -45,51 +48,115 @@ class RecentVisitsViewModel @Inject constructor(
     private val visitRepository: VisitRepository,
 ) : ViewModel() {
 
+    /** Stops from launched trips that haven't been logged yet. */
+    val pending: StateFlow<List<PendingVisitWithLocation>> =
+        visitRepository.observePending()
+            .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+
     val visits: StateFlow<List<RecentVisit>> =
         visitRepository.observeRecentWithLocation(limit = 100)
             .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
-    fun dismiss(visit: RecentVisit) {
+    fun dismissPending(entry: PendingVisitWithLocation) {
+        viewModelScope.launch { visitRepository.clearPending(entry.pending.placeId) }
+    }
+
+    fun dismissVisit(visit: RecentVisit) {
         viewModelScope.launch { visitRepository.delete(visit.visit) }
     }
 }
 
 /**
- * Reverse-chronological list of logged visits. Each entry can be edited
- * (opens the visit form pre-filled) or dismissed (deleted).
+ * Two-section visit tracker: stops queued from launched trips that still need
+ * logging, followed by the reverse-chronological list of logged visits.
  */
 @Composable
 fun RecentVisitsScreen(
-    onEditVisit: (placeId: String, visitId: Long) -> Unit,
+    onOpenVisitForm: (placeId: String, visitId: Long) -> Unit,
     viewModel: RecentVisitsViewModel = hiltViewModel(),
 ) {
+    val pending by viewModel.pending.collectAsState()
     val visits by viewModel.visits.collectAsState()
     var visitPendingDismiss by remember { mutableStateOf<RecentVisit?>(null) }
 
-    Column(modifier = Modifier.fillMaxSize()) {
-        Text(
-            text = "Recent visits",
-            style = MaterialTheme.typography.titleMedium,
-            modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
-        )
+    if (pending.isEmpty() && visits.isEmpty()) {
+        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+            Text(
+                text = "No visits yet.\nPlan a trip or log a visit from any " +
+                    "location's detail page.",
+                style = MaterialTheme.typography.bodyLarge,
+                modifier = Modifier.padding(32.dp),
+            )
+        }
+        return
+    }
 
-        if (visits.isEmpty()) {
-            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+    LazyColumn(
+        modifier = Modifier.fillMaxSize(),
+        contentPadding = androidx.compose.foundation.layout.PaddingValues(16.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        if (pending.isNotEmpty()) {
+            item {
                 Text(
-                    text = "No visits logged yet.\nLog one from any location's detail page.",
-                    style = MaterialTheme.typography.bodyLarge,
-                    modifier = Modifier.padding(32.dp),
+                    text = "To log (${pending.size})",
+                    style = MaterialTheme.typography.titleMedium,
                 )
             }
-            return@Column
+            items(pending, key = { "pending-${it.pending.id}" }) { entry ->
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = CardDefaults.cardColors(
+                        containerColor = MaterialTheme.colorScheme.secondaryContainer,
+                    ),
+                ) {
+                    Column(modifier = Modifier.padding(12.dp)) {
+                        Text(
+                            entry.locationName,
+                            style = MaterialTheme.typography.titleMedium,
+                        )
+                        Text(
+                            text = "On trip ${formatDateTime(entry.pending.createdAt)}" +
+                                " — not logged yet",
+                            style = MaterialTheme.typography.bodySmall,
+                        )
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.End,
+                        ) {
+                            TextButton(
+                                onClick = { onOpenVisitForm(entry.pending.placeId, -1L) },
+                            ) {
+                                Icon(
+                                    Icons.Filled.Edit,
+                                    contentDescription = null,
+                                    modifier = Modifier.padding(end = 4.dp),
+                                )
+                                Text("Log visit")
+                            }
+                            TextButton(onClick = { viewModel.dismissPending(entry) }) {
+                                Icon(
+                                    Icons.Filled.Close,
+                                    contentDescription = null,
+                                    modifier = Modifier.padding(end = 4.dp),
+                                )
+                                Text("Didn't stop")
+                            }
+                        }
+                    }
+                }
+            }
         }
 
-        LazyColumn(
-            modifier = Modifier.fillMaxSize(),
-            contentPadding = androidx.compose.foundation.layout.PaddingValues(16.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp),
-        ) {
-            items(visits, key = { it.visit.id }) { entry ->
+        if (visits.isNotEmpty()) {
+            item {
+                Text(
+                    text = "Logged (${visits.size})",
+                    style = MaterialTheme.typography.titleMedium,
+                    modifier = Modifier.padding(top = if (pending.isEmpty()) 0.dp else 8.dp),
+                )
+            }
+            items(visits, key = { "visit-${it.visit.id}" }) { entry ->
                 Card(modifier = Modifier.fillMaxWidth()) {
                     Column(modifier = Modifier.padding(12.dp)) {
                         Text(entry.locationName, style = MaterialTheme.typography.titleMedium)
@@ -118,7 +185,7 @@ fun RecentVisitsScreen(
                         ) {
                             TextButton(
                                 onClick = {
-                                    onEditVisit(entry.visit.placeId, entry.visit.id)
+                                    onOpenVisitForm(entry.visit.placeId, entry.visit.id)
                                 },
                             ) {
                                 Icon(
@@ -134,7 +201,7 @@ fun RecentVisitsScreen(
                                     contentDescription = null,
                                     modifier = Modifier.padding(end = 4.dp),
                                 )
-                                Text("Dismiss")
+                                Text("Delete")
                             }
                         }
                     }
@@ -146,7 +213,7 @@ fun RecentVisitsScreen(
     visitPendingDismiss?.let { entry ->
         AlertDialog(
             onDismissRequest = { visitPendingDismiss = null },
-            title = { Text("Dismiss this visit?") },
+            title = { Text("Delete this visit?") },
             text = {
                 Text(
                     "The visit to ${entry.locationName} on " +
@@ -156,10 +223,10 @@ fun RecentVisitsScreen(
             confirmButton = {
                 TextButton(
                     onClick = {
-                        viewModel.dismiss(entry)
+                        viewModel.dismissVisit(entry)
                         visitPendingDismiss = null
                     },
-                ) { Text("Dismiss visit") }
+                ) { Text("Delete") }
             },
             dismissButton = {
                 TextButton(onClick = { visitPendingDismiss = null }) { Text("Keep") }

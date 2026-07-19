@@ -33,8 +33,11 @@ with a hand-off to Google Maps for turn-by-turn navigation.
   screen space. Check off the stops you want — they appear green on the map —
   and press **Navigate**: Google Maps opens with those locations already added
   as ordered stops.
-- **Visits tab** — reverse-chronological list of every logged visit, with
-  in-place editing (reopens the visit form pre-filled) and dismissal.
+- **Visits tab** — two sections. *To log*: when a trip is sent to Google
+  Maps, every selected stop is queued here; tap "Log visit" to record it
+  (which moves it to the logged list) or "Didn't stop" to discard it.
+  *Logged*: reverse-chronological history of recorded visits with in-place
+  editing (reopens the visit form pre-filled) and deletion.
 
 > **Note on Google Maps integration:** Google doesn't let third-party apps
 > read or modify a route that is *already running* inside Google Maps, and
